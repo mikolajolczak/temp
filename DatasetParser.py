@@ -13,7 +13,7 @@ class DatasetParser:
         self.split_ratio = split_ratio
 
         for _ in column_types:
-            self.metadata.append({})
+            self.metadata.append({'min': None, 'max': None})
 
         for record in input_data:
             if len(record) <= 1:
@@ -26,9 +26,9 @@ class DatasetParser:
                     record[idx] = self.metadata[idx][record[idx]]
                 else:
                     value = float(record[idx])
-                    if 'min' not in self.metadata[idx] or value < self.metadata[idx]['min']:
+                    if self.metadata[idx]['min'] is None or value < self.metadata[idx]['min']:
                         self.metadata[idx]['min'] = value
-                    if 'max' not in self.metadata[idx] or value > self.metadata[idx]['max']:
+                    if self.metadata[idx]['max'] is None or value > self.metadata[idx]['max']:
                         self.metadata[idx]['max'] = value
                     record[idx] = value
 
@@ -36,7 +36,8 @@ class DatasetParser:
 
         for idx in range(len(self.metadata)):
             if self.column_types[idx] == FLOAT:
-                self.metadata[idx]['range'] = self.metadata[idx]['max'] - self.metadata[idx]['min']
+                if self.metadata[idx]['min'] is not None and self.metadata[idx]['max'] is not None:
+                    self.metadata[idx]['range'] = self.metadata[idx]['max'] - self.metadata[idx]['min']
 
         random.shuffle(self.raw_data)
         self.total_data_points = len(self.raw_data)
@@ -47,10 +48,13 @@ class DatasetParser:
             if idx < len(self.column_types) and self.column_types[idx] != STRING:
                 min_val = self.metadata[idx]['min']
                 max_val = self.metadata[idx]['max']
-                bin_index = floor(self.num_buckets * (record[idx] - min_val) / (max_val - min_val))
-                if bin_index >= self.num_buckets:
-                    bin_index = self.num_buckets - 1
-                binned_record.append(bin_index)
+                if min_val is not None and max_val is not None:
+                    bin_index = floor(self.num_buckets * (record[idx] - min_val) / (max_val - min_val))
+                    if bin_index >= self.num_buckets:
+                        bin_index = self.num_buckets - 1
+                    binned_record.append(bin_index)
+                else:
+                    binned_record.append(0)
             else:
                 binned_record.append(record[idx])
         binned_record.append(record[-1])
