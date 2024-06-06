@@ -40,20 +40,24 @@ def display_results(results_report, dataset_name, classifier, elapsed_time):
 def parse_dataset(file_path, train_ratio, buckets):
     with open(file_path) as file:
         csv_data = list(csv.reader(file, delimiter=','))
-        column_data_types = determine_column_types(csv_data)
-        return DatasetParser(csv_data, train_ratio, column_data_types, buckets)
+        num_elements_first_row = len(csv_data[0])
+        filtered_csv_data = [row for row in csv_data if len(row) == num_elements_first_row]
+        column_data_types = determine_column_types(filtered_csv_data)
+        return DatasetParser(filtered_csv_data, train_ratio, column_data_types, buckets)
+def determine_column_types(csv_data):
+    column_types = []
+    header = csv_data[0]
 
-def determine_column_types(data):
-    column_data_types = []
-    for column in zip(*data):
-        if all(is_numeric(value) for value in column):
-            if all(is_integer(value) for value in column):
-                column_data_types.append(INTEGER)
-            else:
-                column_data_types.append(FLOAT)
+    for i in range(len(header)):
+        column = [row[i] for row in csv_data]
+        column_set = set(column)
+        if all(is_numeric(value) for value in column_set):
+            column_types.append(FLOAT)
+        elif all(is_integer(value) for value in column_set):
+            column_types.append(INTEGER)
         else:
-            column_data_types.append(STRING)
-    return column_data_types
+            column_types.append(STRING)
+    return column_types
 
 def is_numeric(value):
     try:
@@ -84,12 +88,12 @@ if __name__ == "__main__":
         dataset_name = dataset_file.split('/')[-1].split('.')[0]
         dataset = parse_dataset(dataset_file, TRAINING_SPLIT_RATIO, NUMBER_OF_BUCKETS)
         classifiers = [
-            LazyClassificationwithContrastPatterns(),
             NaiveBayesianClassifier(0),
             NaiveBayesianClassifier(0.1),
             NaiveBayesianClassifier(0.5),
             NaiveBayesianClassifier(1),
-            SPRINT()
+            SPRINT(),
+            LazyClassificationwithContrastPatterns()
         ]
         for classifier in classifiers:
             training_set, testing_set = split_dataset_for_classifier(dataset, classifier.__class__.__name__)
